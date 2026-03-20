@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables (contains API keys — never commit!)
+.env
+.env.local
+.env.*.local
+
+# Editor & OS
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+.vscode/settings.json
+
+# Vite cache
+.vite/
