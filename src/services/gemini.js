@@ -1,19 +1,21 @@
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? '';
-const API_URL =
-  `https://generativelanguage.googleapis.com/v1beta/models/` +
-  `gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+const BASE_URL =
+  'https://generativelanguage.googleapis.com/v1beta/models/' +
+  'gemini-2.5-flash-preview-09-2025:generateContent';
 
 /**
  * Calls the Gemini API with a query and optional system prompt.
- * Throws on HTTP error; returns the raw text response.
+ * apiKey must be supplied by the caller (stored in localStorage by the UI).
+ * Throws 'NO_API_KEY' when key is missing, or an HTTP error string otherwise.
  */
-export async function callGemini(query, systemPrompt = '你是一位專業的幼教溝通助手。') {
+export async function callGemini(query, systemPrompt = '你是一位專業的幼教溝通助手。', apiKey = '') {
+  if (!apiKey) throw new Error('NO_API_KEY');
+
   const payload = {
     contents: [{ parts: [{ text: query }] }],
     systemInstruction: { parts: [{ text: systemPrompt }] },
   };
 
-  const response = await fetch(API_URL, {
+  const response = await fetch(`${BASE_URL}?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

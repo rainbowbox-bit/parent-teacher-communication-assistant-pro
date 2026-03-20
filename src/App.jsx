@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Puzzle, RotateCcw } from 'lucide-react';
+import { Puzzle, RotateCcw, KeyRound } from 'lucide-react';
 
 import { BRANDING_SIGNATURE_UI, PARENT_STYLES } from './constants';
 import { callGemini, parseDraftResponse } from './services/gemini';
@@ -11,6 +11,7 @@ import {
 
 import SettingsPanel from './components/SettingsPanel';
 import ResultPanel from './components/ResultPanel';
+import ApiKeyModal from './components/ApiKeyModal';
 
 const DEFAULT_FORM = {
   topic: 'care',
@@ -28,14 +29,30 @@ const DEFAULT_FORM = {
   deadline: '',
 };
 
+const LS_KEY = 'gemini_api_key';
+
 function getNowTime() {
   const now = new Date();
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
 export default function App() {
+  // ── API key (persisted in localStorage) ──
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(LS_KEY) ?? '');
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+
+  const handleSaveApiKey = useCallback((key) => {
+    if (key) {
+      localStorage.setItem(LS_KEY, key);
+    } else {
+      localStorage.removeItem(LS_KEY);
+    }
+    setApiKey(key);
+  }, []);
+
+  // ── Form & result state ──
   const [formData, setFormData] = useState({ ...DEFAULT_FORM, time: getNowTime() });
-  const [draft, setDraft] = useState(null);          // { text }
+  const [draft, setDraft] = useState(null);
   const [assessment, setAssessment] = useState(null);
   const [simulatedReply, setSimulatedReply] = useState(null);
   const [adminReport, setAdminReport] = useState(null);
@@ -91,6 +108,10 @@ export default function App() {
 
   // ── Generate draft ──
   const handleGenerate = useCallback(async () => {
+    if (!apiKey) {
+      setShowApiKeyModal(true);
+      return;
+    }
     if (!formData.context.trim()) {
       setError('請先輸入情境描述，才能生成回覆。');
       return;
@@ -104,18 +125,22 @@ export default function App() {
 
     try {
       const query = buildDraftPrompt(formData);
-      const raw = await callGemini(query, SYSTEM_PROMPT);
+      const raw = await callGemini(query, SYSTEM_PROMPT, apiKey);
       const { draftText, assessment: parsed } = parseDraftResponse(raw);
       setDraft({ text: draftText });
       setAssessment(parsed);
       addToHistory(draftText, parsed);
     } catch (e) {
-      setError('生成失敗，請檢查網路連線或 API 金鑰設定。');
+      if (e.message === 'NO_API_KEY') {
+        setShowApiKeyModal(true);
+      } else {
+        setError('生成失敗，請確認 API 金鑰是否正確或網路連線是否正常。');
+      }
       console.error(e);
     } finally {
       setIsLoading(false);
     }
-  }, [formData, addToHistory]);
+  }, [formData, addToHistory, apiKey]);
 
   // ── Polish draft ──
   const handlePolish = useCallback(async (type) => {
@@ -123,7 +148,7 @@ export default function App() {
     setIsMagicLoading(true);
     try {
       const query = buildPolishPrompt(draft.text, type);
-      const result = await callGemini(query);
+      const result = await callGemini(query, undefined, apiKey);
       setDraft({ text: result });
       setHistory((prev) => {
         if (!prev.length) return prev;
@@ -136,7 +161,7 @@ export default function App() {
     } finally {
       setIsMagicLoading(false);
     }
-  }, [draft]);
+  }, [draft, apiKey]);
 
   // ── Simulate parent reply ──
   const handleSimulate = useCallback(async () => {
@@ -146,14 +171,14 @@ export default function App() {
     try {
       const ps = PARENT_STYLES[formData.parentStyle];
       const query = buildSimulatePrompt(draft.text, ps.name, ps.instruction);
-      const result = await callGemini(query);
+      const result = await callGemini(query, undefined, apiKey);
       setSimulatedReply(result);
     } catch {
       setError('模擬回覆失敗，請稍後再試。');
     } finally {
       setIsMagicLoading(false);
     }
-  }, [draft, formData.parentStyle]);
+  }, [draft, formData.parentStyle, apiKey]);
 
   // ── Admin report ──
   const handleAdminReport = useCallback(async () => {
@@ -163,14 +188,14 @@ export default function App() {
     setShowAdminModal(true);
     try {
       const query = buildAdminReportPrompt(formData);
-      const result = await callGemini(query, '你是一位專業的幼兒園行政主管，擅長撰寫客觀的事件報告。');
+      const result = await callGemini(query, '你是一位專業的幼兒園行政主管，擅長撰寫客觀的事件報告。', apiKey);
       setAdminReport(result);
     } catch {
       setAdminReport('生成失敗，請稍後再試。');
     } finally {
       setIsAdminLoading(false);
     }
-  }, [formData]);
+  }, [formData, apiKey]);
 
   // ── Copy to clipboard ──
   const copyToClipboard = useCallback((text) => {
@@ -194,6 +219,8 @@ export default function App() {
     setShowAdminModal(false);
     setError(null);
   }, []);
+
+  const hasApiKey = Boolean(apiKey);
 
   return (
     <div className="min-h-screen font-sans text-gray-800 pb-20 bg-[#f0f9ff]">
@@ -223,6 +250,20 @@ export default function App() {
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
+            {/* API Key button — orange when missing, teal when set */}
+            <button
+              onClick={() => setShowApiKeyModal(true)}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border ${
+                hasApiKey
+                  ? 'bg-teal-50 text-teal-600 border-teal-200 hover:bg-teal-100'
+                  : 'bg-orange-50 text-orange-500 border-orange-200 hover:bg-orange-100 animate-pulse'
+              }`}
+              title={hasApiKey ? `已設定金鑰 (...${apiKey.slice(-4)})` : '請設定 API 金鑰才能使用'}
+            >
+              <KeyRound size={14} />
+              {hasApiKey ? 'API 金鑰' : '設定金鑰 ！'}
+            </button>
+
             <button
               onClick={handleReset}
               className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors border border-red-100"
@@ -254,6 +295,7 @@ export default function App() {
             onGenerate={handleGenerate}
             isLoading={isLoading}
             error={error}
+            hasApiKey={hasApiKey}
           />
         </div>
 
@@ -286,6 +328,15 @@ export default function App() {
       <footer className="w-full text-center py-4 text-[10px] text-gray-400 relative z-10">
         {BRANDING_SIGNATURE_UI}
       </footer>
+
+      {/* API Key Modal */}
+      {showApiKeyModal && (
+        <ApiKeyModal
+          currentKey={apiKey}
+          onSave={handleSaveApiKey}
+          onClose={() => setShowApiKeyModal(false)}
+        />
+      )}
     </div>
   );
 }
