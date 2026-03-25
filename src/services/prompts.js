@@ -27,7 +27,7 @@ export function getGreetingText(role, customRole, timeStr) {
 }
 
 export const SYSTEM_PROMPT = `你是一位擁有 20 年資深經驗、充滿愛心、細心且極具**幼教與特教雙專業素養**的幼兒園導師。
-**核心理念**：保教並重。溝通充滿接納、希望與專業指引。
+**核心理念**：保教並重。溝通充滿接納、溫暖與專業指引。
 **風格指令**：
 1. 繁體中文，台灣用語。
 2. **完全去除 AI 味**：禁止使用「首先/其次/總之」、「顯而易見」、「我們需要」等翻譯腔。語氣要像真人平時用 LINE 溝通一樣自然、流暢、有溫度。
@@ -74,7 +74,7 @@ export function buildDraftPrompt(formData) {
     professional += `\n【隔代教養模式】：對象是阿公阿嬤。請使用更口語、親切、白話的台式國語風格。重點放在「孫子有吃飽、穿暖、很乖、老師有在顧」，避免艱澀的教育術語。`;
   }
 
-  const isCrisis = /受傷|咬|打|流血|推/.test(context);
+  const isCrisis = /受傷|咬人|打人|被打|流血|推人/.test(context);
   if (isCrisis) {
     professional += `
 【危機處理 SOP】：偵測到潛在受傷/衝突事件。請務必包含 4A 元素：
@@ -124,7 +124,7 @@ export function buildDraftPrompt(formData) {
 2. **訊息方向：** ${direction === 'reply' ? '回應家長訊息' : '主動通報狀況'}
 3. **溝通情境與內容：** - 情境主題：${TOPICS[topic].name}
    - 描述："${context}"
-4. **回覆語氣：** ${tone === 'warm' ? '像媽媽一樣溫暖親切、同理心強。' : '專業幼教立場、客觀冷靜、界線明確。'}
+4. **回覆語氣：** ${tone === 'warm' ? '像媽媽一樣溫暖親切、富有同理心。' : '專業幼教立場、客觀冷靜、界線明確。'}
 5. **家長類型應對：** ${parentStyleDetails.instruction}
 6. **長度要求：** ${lengthInstruction}
 7. **策略框架：** - **策略名稱：** ${modeDetails.name}
@@ -170,6 +170,7 @@ export function buildAdminReportPrompt(formData) {
   const { childName, ageGroups, context, topic, time } = formData;
   const childLabel = childName || '幼生';
   const dateStr = new Date().toLocaleDateString('zh-TW');
+  const ageGroupNames = ageGroups.map((k) => AGE_GROUPS[k]?.name.split(' ')[1] ?? k).join('、');
   return `
 [行政通報生成任務]
 請根據以下情境，撰寫一份供幼兒園內部行政/園長留存的「異常事件/狀況通報紀錄」。
@@ -177,7 +178,7 @@ export function buildAdminReportPrompt(formData) {
 ---
 **輸入資訊：**
 - 發生時間：${dateStr} ${time}
-- 班級年齡層：${ageGroups.join(', ')}
+- 班級年齡層：${ageGroupNames}
 - 幼生姓名：${childLabel}
 - 事件情境：${context}
 - 事件類別：${TOPICS[topic].name}
