@@ -86,16 +86,10 @@ export default function App() {
 
   const handleQuickTag = useCallback((tag) => {
     setFormData((prev) => {
-      let ctx = prev.context || '';
-      if (ctx.includes(tag)) {
-        ctx = ctx.replace(new RegExp(`${tag}，`, 'g'), '');
-        ctx = ctx.replace(new RegExp(`，${tag}`, 'g'), '');
-        ctx = ctx.replace(new RegExp(tag, 'g'), '');
-        ctx = ctx.replace(/，，/g, '，').trim();
-      } else {
-        ctx = ctx ? `${ctx}，${tag}` : tag;
-      }
-      return { ...prev, context: ctx };
+      const parts = (prev.context || '').split('，').map((s) => s.trim()).filter(Boolean);
+      const idx = parts.indexOf(tag);
+      const next = idx !== -1 ? parts.filter((_, i) => i !== idx) : [...parts, tag];
+      return { ...prev, context: next.join('，') };
     });
   }, []);
 
@@ -131,8 +125,10 @@ export default function App() {
       setAssessment(parsed);
       addToHistory(draftText, parsed);
     } catch (e) {
-      if (e.message === 'NO_API_KEY') {
+      if (e.message === 'NO_API_KEY' || e.message === 'INVALID_KEY') {
         setShowApiKeyModal(true);
+      } else if (e.message === 'TIMEOUT') {
+        setError('請求逾時（20 秒），請確認網路連線後再試。');
       } else {
         setError('生成失敗，請確認 API 金鑰是否正確或網路連線是否正常。');
       }
@@ -199,14 +195,30 @@ export default function App() {
 
   // ── Copy to clipboard ──
   const copyToClipboard = useCallback((text) => {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    setCopySuccess(true);
-    setTimeout(() => setCopySuccess(false), 2000);
+    const finish = () => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2500);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(finish).catch(() => {
+        // fallback for older browsers
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        finish();
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      finish();
+    }
   }, []);
 
   const handleReset = useCallback(() => {

@@ -7,21 +7,40 @@ const BASE_URL =
  * apiKey must be supplied by the caller (stored in localStorage by the UI).
  * Throws 'NO_API_KEY' when key is missing, or an HTTP error string otherwise.
  */
+const TIMEOUT_MS = 20_000;
+
 export async function callGemini(query, systemPrompt = '你是一位專業的幼教溝通助手。', apiKey = '') {
   if (!apiKey) throw new Error('NO_API_KEY');
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   const payload = {
     contents: [{ parts: [{ text: query }] }],
     systemInstruction: { parts: [{ text: systemPrompt }] },
   };
 
-  const response = await fetch(`${BASE_URL}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  let response;
+  try {
+    response = await fetch(`${BASE_URL}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('TIMEOUT');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('INVALID_KEY');
+    }
     throw new Error(`Gemini API Error: ${response.status} ${response.statusText}`);
   }
 
