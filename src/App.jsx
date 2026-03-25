@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Puzzle, RotateCcw, KeyRound } from 'lucide-react';
 
-import { BRANDING_SIGNATURE_UI, PARENT_STYLES } from './constants';
+import { BRANDING_SIGNATURE_UI, PARENT_STYLES, AGE_GROUPS } from './constants';
 import { callGemini, parseDraftResponse } from './services/gemini';
 import {
   buildDraftPrompt, buildPolishPrompt,
@@ -75,7 +75,12 @@ export default function App() {
   }, []);
 
   const toggleAgeGroup = useCallback((key) => {
+    const ALL_AGE_KEYS = Object.keys(AGE_GROUPS);
     setFormData((prev) => {
+      if (key === 'all') {
+        const allSelected = ALL_AGE_KEYS.every((k) => prev.ageGroups.includes(k));
+        return { ...prev, ageGroups: allSelected ? ['middle'] : [...ALL_AGE_KEYS] };
+      }
       const groups = prev.ageGroups;
       if (groups.includes(key)) {
         return groups.length === 1 ? prev : { ...prev, ageGroups: groups.filter((g) => g !== key) };

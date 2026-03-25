@@ -36,20 +36,32 @@ export default function SettingsPanel({
         <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5 flex items-center gap-1">
           <Baby size={14} /> 班級年齡層 (可複選)
         </label>
-        <div className="grid grid-cols-4 gap-2">
-          {Object.entries(AGE_GROUPS).map(([key, val]) => (
-            <button
-              key={key}
-              onClick={() => onToggleAge(key)}
-              className={`py-2 px-1 rounded-lg text-[11px] font-bold transition-all border ${
-                ageGroups.includes(key)
-                  ? 'bg-teal-500 text-white border-teal-600 shadow-md'
-                  : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              {val.name.split(' ')[1]}
-            </button>
-          ))}
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => onToggleAge('all')}
+            className={`w-full py-2 px-1 rounded-lg text-[11px] font-bold transition-all border ${
+              Object.keys(AGE_GROUPS).every((k) => ageGroups.includes(k))
+                ? 'bg-teal-500 text-white border-teal-600 shadow-md'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            🏫 全園
+          </button>
+          <div className="grid grid-cols-4 gap-2">
+            {Object.entries(AGE_GROUPS).map(([key, val]) => (
+              <button
+                key={key}
+                onClick={() => onToggleAge(key)}
+                className={`py-2 px-1 rounded-lg text-[11px] font-bold transition-all border ${
+                  ageGroups.includes(key)
+                    ? 'bg-teal-500 text-white border-teal-600 shadow-md'
+                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                {val.name.split(' ')[1]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
