@@ -15,9 +15,9 @@ export async function callGemini(query, systemPrompt = '你是一位專業的幼
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
+  const fullText = systemPrompt ? `${systemPrompt}\n\n${query}` : query;
   const payload = {
-    contents: [{ parts: [{ text: query }] }],
-    systemInstruction: { parts: [{ text: systemPrompt }] },
+    contents: [{ parts: [{ text: fullText }] }],
   };
 
   let response;
