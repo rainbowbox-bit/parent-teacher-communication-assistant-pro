@@ -135,7 +135,10 @@ export default function App() {
       } else if (e.message === 'TIMEOUT') {
         setError('請求逾時（20 秒），請確認網路連線後再試。');
       } else {
-        setError('生成失敗，請確認 API 金鑰是否正確或網路連線是否正常。');
+        const detail = e.message?.startsWith('Gemini API Error')
+          ? `（${e.message}）`
+          : '';
+        setError(`生成失敗，請確認 API 金鑰是否正確或網路連線是否正常。${detail}`);
       }
       console.error(e);
     } finally {

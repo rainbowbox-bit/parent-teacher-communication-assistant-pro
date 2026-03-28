@@ -1,6 +1,6 @@
 const BASE_URL =
   'https://generativelanguage.googleapis.com/v1beta/models/' +
-  'gemini-2.5-flash-preview-09-2025:generateContent';
+  'gemini-2.0-flash:generateContent';
 
 /**
  * Calls the Gemini API with a query and optional system prompt.
