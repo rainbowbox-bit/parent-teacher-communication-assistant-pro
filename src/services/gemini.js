@@ -1,13 +1,13 @@
 const BASE_URL =
   'https://generativelanguage.googleapis.com/v1/models/' +
-  'gemini-2.0-flash:generateContent';
+  'gemini-2.0-flash-001:generateContent';
 
 /**
  * Calls the Gemini API with a query and optional system prompt.
  * apiKey must be supplied by the caller (stored in localStorage by the UI).
  * Throws 'NO_API_KEY' when key is missing, or an HTTP error string otherwise.
  */
-const TIMEOUT_MS = 20_000;
+const TIMEOUT_MS = 30_000;
 
 export async function callGemini(query, systemPrompt = '你是一位專業的幼教溝通助手。', apiKey = '') {
   if (!apiKey) throw new Error('NO_API_KEY');
@@ -38,10 +38,22 @@ export async function callGemini(query, systemPrompt = '你是一位專業的幼
   }
 
   if (!response.ok) {
+    // Try to extract Google's error message for better diagnostics
+    let errorMessage = '';
+    try {
+      const errData = await response.json();
+      errorMessage = errData?.error?.message ?? '';
+    } catch {
+      // ignore parse failure
+    }
+
     if (response.status === 401 || response.status === 403) {
       throw new Error('INVALID_KEY');
     }
-    throw new Error(`Gemini API Error: ${response.status} ${response.statusText}`);
+    if (response.status === 404) {
+      throw new Error(`MODEL_NOT_FOUND: ${errorMessage}`);
+    }
+    throw new Error(`Gemini API Error: ${response.status} — ${errorMessage}`);
   }
 
   const data = await response.json();
