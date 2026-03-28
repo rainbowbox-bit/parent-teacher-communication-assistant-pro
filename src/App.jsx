@@ -37,7 +37,7 @@ function getNowTime() {
 }
 
 export default function App() {
-  // ── API key (persisted in localStorage) ──
+  // API key (persisted in localStorage)
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(LS_KEY) ?? '');
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
@@ -50,7 +50,7 @@ export default function App() {
     setApiKey(key);
   }, []);
 
-  // ── Form & result state ──
+  // Form & result state
   const [formData, setFormData] = useState({ ...DEFAULT_FORM, time: getNowTime() });
   const [draft, setDraft] = useState(null);
   const [assessment, setAssessment] = useState(null);
@@ -91,10 +91,10 @@ export default function App() {
 
   const handleQuickTag = useCallback((tag) => {
     setFormData((prev) => {
-      const parts = (prev.context || '').split('，').map((s) => s.trim()).filter(Boolean);
+      const parts = (prev.context || '').split('、').map((s) => s.trim()).filter(Boolean);
       const idx = parts.indexOf(tag);
       const next = idx !== -1 ? parts.filter((_, i) => i !== idx) : [...parts, tag];
-      return { ...prev, context: next.join('，') };
+      return { ...prev, context: next.join('、') };
     });
   }, []);
 
@@ -105,14 +105,14 @@ export default function App() {
     ].slice(0, 3));
   }, [formData.childName, formData.context]);
 
-  // ── Generate draft ──
+  // Generate draft
   const handleGenerate = useCallback(async () => {
     if (!apiKey) {
       setShowApiKeyModal(true);
       return;
     }
     if (!formData.context.trim()) {
-      setError('請先輸入情境描述，才能生成回覆。');
+      setError('請先輸入要回覆的情境內容。');
       return;
     }
     setIsLoading(true);
@@ -130,15 +130,24 @@ export default function App() {
       setAssessment(parsed);
       addToHistory(draftText, parsed);
     } catch (e) {
-      if (e.message === 'NO_API_KEY' || e.message === 'INVALID_KEY') {
+      if (e.message === 'NO_API_KEY') {
         setShowApiKeyModal(true);
+      } else if (e.message === 'INVALID_KEY') {
+        setShowApiKeyModal(true);
+        setError('API 金鑰無效、已過期，或未開通 Gemini API 權限，請至 Google AI Studio 重新建立金鑰。');
       } else if (e.message === 'TIMEOUT') {
-        setError('請求逾時，請確認網路連線後再試。');
+        setError('請求逾時，請檢查網路後再試。');
+      } else if (e.message === 'NO_SUPPORTED_MODEL') {
+        setError('此 API 金鑰目前查無可用的 Gemini 文字模型，請到 Google AI Studio 確認專案與 API 啟用狀態。');
       } else if (e.message?.startsWith('MODEL_NOT_FOUND')) {
-        setError('此 API 金鑰無法存取目前使用的模型，請至 Google AI Studio 重新申請金鑰。');
+        setError('目前模型暫時不可用，系統已嘗試自動切換；若仍失敗，請稍後重試或重新建立 API 金鑰。');
+      } else if (e.message === 'RATE_LIMITED') {
+        setError('請求過於頻繁（超出配額），請稍後再試。');
+      } else if (e.message?.startsWith('PROMPT_BLOCKED')) {
+        setError('內容觸發模型安全限制，請調整內容後再試。');
       } else {
         const detail = e.message ? `（${e.message}）` : '';
-        setError(`生成失敗，請確認 API 金鑰是否正確或網路連線是否正常。${detail}`);
+        setError(`生成失敗，請確認 API 金鑰或網路連線。${detail}`);
       }
       console.error(e);
     } finally {
@@ -146,7 +155,7 @@ export default function App() {
     }
   }, [formData, addToHistory, apiKey]);
 
-  // ── Polish draft ──
+  // Polish draft
   const handlePolish = useCallback(async (type) => {
     if (!draft) return;
     setIsMagicLoading(true);
@@ -161,13 +170,13 @@ export default function App() {
         return next;
       });
     } catch {
-      setError('潤飾失敗，請稍後再試。');
+      setError('潤稿失敗，請稍後再試。');
     } finally {
       setIsMagicLoading(false);
     }
   }, [draft, apiKey]);
 
-  // ── Simulate parent reply ──
+  // Simulate parent reply
   const handleSimulate = useCallback(async () => {
     if (!draft) return;
     setIsMagicLoading(true);
@@ -178,13 +187,13 @@ export default function App() {
       const result = await callGemini(query, undefined, apiKey);
       setSimulatedReply(result);
     } catch {
-      setError('模擬回覆失敗，請稍後再試。');
+      setError('模擬家長回覆失敗，請稍後再試。');
     } finally {
       setIsMagicLoading(false);
     }
   }, [draft, formData.parentStyle, apiKey]);
 
-  // ── Admin report ──
+  // Admin report
   const handleAdminReport = useCallback(async () => {
     if (!formData.context) return;
     setIsAdminLoading(true);
@@ -201,7 +210,7 @@ export default function App() {
     }
   }, [formData, apiKey]);
 
-  // ── Copy to clipboard ──
+  // Copy to clipboard
   const copyToClipboard = useCallback((text) => {
     const finish = () => {
       setCopySuccess(true);
@@ -230,7 +239,7 @@ export default function App() {
   }, []);
 
   const handleReset = useCallback(() => {
-    if (!window.confirm('確定要清空所有設定嗎？')) return;
+    if (!window.confirm('確定要重設所有欄位與結果嗎？')) return;
     setFormData({ ...DEFAULT_FORM, time: getNowTime() });
     setDraft(null);
     setAssessment(null);
@@ -254,7 +263,7 @@ export default function App() {
               <Puzzle size={22} />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900 tracking-tight">幼兒園親師溝通神隊友</h1>
+              <h1 className="text-lg font-bold text-gray-900 tracking-tight">親師溝通助手 PRO</h1>
               <p className="text-[10px] text-teal-600 uppercase tracking-wider font-semibold">
                 Preschool Professional V11
               </p>
@@ -263,14 +272,14 @@ export default function App() {
 
           <div className="hidden md:block flex-1 text-center border-l border-r border-teal-50 mx-4 px-4">
             <p className="text-[10px] text-gray-400 italic leading-tight">
-              AI 能描繪出完美的成長軌跡，但只有你的眼睛，能看見孩子身上發光的星星。<br />
-              讓科技承載文字斟酌的繁重，好讓你騰出雙手，去擁抱孩子真實的溫暖與重量。<br />
-              因為運算無法複製愛，唯有你的關懷和在乎，能讓字句擁有不可替代的溫度。
+              AI 僅為輔助工具，請依實際情況調整內容。<br />
+              送出前請再次確認語氣、時間與承諾事項。<br />
+              涉及安全或行政事件時，建議同步通報主管。
             </p>
           </div>
 
           <div className="flex gap-2 flex-shrink-0">
-            {/* API Key button — orange when missing, teal when set */}
+            {/* API Key button - orange when missing, teal when set */}
             <button
               onClick={() => setShowApiKeyModal(true)}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border ${
@@ -278,7 +287,7 @@ export default function App() {
                   ? 'bg-teal-50 text-teal-600 border-teal-200 hover:bg-teal-100'
                   : 'bg-orange-50 text-orange-500 border-orange-200 hover:bg-orange-100 animate-pulse'
               }`}
-              title={hasApiKey ? `已設定金鑰 (...${apiKey.slice(-4)})` : '請設定 API 金鑰才能使用'}
+              title={hasApiKey ? `已設定金鑰 (...${apiKey.slice(-4)})` : '請先設定 API 金鑰才能使用'}
             >
               <KeyRound size={14} />
               {hasApiKey ? 'API 金鑰' : '設定金鑰 ！'}
@@ -288,19 +297,19 @@ export default function App() {
               onClick={handleReset}
               className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors border border-red-100"
             >
-              <RotateCcw size={14} /> 重置
+              <RotateCcw size={14} /> 重設
             </button>
             <div className="hidden sm:block text-xs font-bold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-full border border-teal-200">
-              貼心升級版
+              園所專業版
             </div>
           </div>
         </div>
 
         <div className="md:hidden px-4 pb-2 text-center">
           <p className="text-[10px] text-gray-400 italic leading-relaxed">
-            AI 能描繪出完美的成長軌跡，但只有你的眼睛，能看見孩子身上發光的星星。<br />
-            讓科技承載文字斟酌的繁重，好讓你騰出雙手，去擁抱孩子真實的溫暖與重量。<br />
-            因為運算無法複製愛，唯有你的關懷和在乎，能讓字句擁有不可替代的溫度。
+            AI 僅為輔助工具，請依實際情況調整內容。<br />
+            送出前請再次確認語氣、時間與承諾事項。<br />
+            涉及安全或行政事件時，建議同步通報主管。
           </p>
         </div>
       </header>
